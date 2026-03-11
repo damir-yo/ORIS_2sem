@@ -1,52 +1,67 @@
 package com.itis.dz2.repository;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Repository;
-import com.itis.dz2.database.DbConnector;
 import com.itis.dz2.entity.UserEntity;
-import java.sql.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.EmptyResultDataAccessException;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import java.util.Map;
 
 @Repository
 public class UserRepository {
-    private final DbConnector connector;
+
+    private final NamedParameterJdbcTemplate jdbcTemplate;
 
     @Autowired
-    public UserRepository(DbConnector connector) {
-        this.connector = connector;
+    public UserRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
-    public void add(String name) throws SQLException {
-        try (Connection con = connector.createConnection();
-             PreparedStatement ps = con.prepareStatement("insert into users (name) values (?)")) {
-            ps.setString(1, name);
-            ps.executeUpdate();
+    public void add(String name) {
+        String sql = "INSERT INTO users (name) VALUES (:name)";
+        jdbcTemplate.update(sql, Map.of("name", name));
+    }
+
+    public UserEntity getOne(String name) {
+        String sql = "SELECT * FROM users WHERE name = :name";
+
+        try {
+            return jdbcTemplate.queryForObject(
+                    sql,
+                    Map.of("name", name),
+                    (rs, rowNum) ->
+                            new UserEntity(
+                                    rs.getLong("id"),
+                                    rs.getString("name")
+                            )
+            );
+        } catch (EmptyResultDataAccessException e) {
+            return null;
         }
     }
 
-    public void remove(Long id) throws SQLException {
-        try (Connection con = connector.createConnection();
-             PreparedStatement ps = con.prepareStatement("delete from users where id = ?")) {
-            ps.setLong(1, id);
-            ps.executeUpdate();
-        }
+    public void modify(Long id, String newName) {
+        String sql =
+                "UPDATE users SET name = :name WHERE id = :id";
+
+        jdbcTemplate.update(
+                sql,
+                Map.of(
+                        "name", newName,
+                        "id", id
+                )
+        );
     }
 
-    public void modify(Long id, String newName) throws SQLException {
-        try (Connection con = connector.createConnection();
-             PreparedStatement ps = con.prepareStatement("update users set name = ? where id = ?")) {
-            ps.setString(1, newName);
-            ps.setLong(2, id);
-            ps.executeUpdate();
-        }
-    }
+    public void remove(Long id) {
+        String sql =
+                "DELETE FROM users WHERE id = :id";
 
-    public UserEntity getOne(String name) throws SQLException {
-        try (Connection con = connector.createConnection();
-             PreparedStatement ps = con.prepareStatement("select * from users where name = ?")) {
-            ps.setString(1, name);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) return new UserEntity(rs.getLong("id"), rs.getString("name"));
-        }
-        return null;
+        jdbcTemplate.update(
+                sql,
+                Map.of("id", id)
+        );
     }
 }
