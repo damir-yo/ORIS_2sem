@@ -1,67 +1,35 @@
 package com.itis.dz2.repository;
 
 import com.itis.dz2.entity.UserEntity;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.EmptyResultDataAccessException;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.stereotype.Repository;
-
-import java.util.Map;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
+@Transactional
 public class UserRepository {
 
-    private final NamedParameterJdbcTemplate jdbcTemplate;
+    @PersistenceContext
+    private EntityManager entityManager;
 
-    @Autowired
-    public UserRepository(NamedParameterJdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public void save(UserEntity user) {
+        entityManager.persist(user);
     }
 
-    public void add(String name) {
-        String sql = "INSERT INTO users (name) VALUES (:name)";
-        jdbcTemplate.update(sql, Map.of("name", name));
+    public UserEntity findById(Long id) {
+        return entityManager.find(UserEntity.class, id);
     }
 
-    public UserEntity getOne(String name) {
-        String sql = "SELECT * FROM users WHERE name = :name";
+    public void update(UserEntity user) {
+        entityManager.merge(user);
+    }
 
-        try {
-            return jdbcTemplate.queryForObject(
-                    sql,
-                    Map.of("name", name),
-                    (rs, rowNum) ->
-                            new UserEntity(
-                                    rs.getLong("id"),
-                                    rs.getString("name")
-                            )
-            );
-        } catch (EmptyResultDataAccessException e) {
-            return null;
+    public void delete(Long id) {
+        UserEntity user = entityManager.find(UserEntity.class, id);
+
+        if (user != null) {
+            entityManager.remove(user);
         }
-    }
-
-    public void modify(Long id, String newName) {
-        String sql =
-                "UPDATE users SET name = :name WHERE id = :id";
-
-        jdbcTemplate.update(
-                sql,
-                Map.of(
-                        "name", newName,
-                        "id", id
-                )
-        );
-    }
-
-    public void remove(Long id) {
-        String sql =
-                "DELETE FROM users WHERE id = :id";
-
-        jdbcTemplate.update(
-                sql,
-                Map.of("id", id)
-        );
     }
 }
